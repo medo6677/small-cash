@@ -44,68 +44,136 @@ class CashierApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Small Cashier")
-        self.geometry("720x420")
+        self.geometry("880x520")
         self.resizable(False, False)
         self.menu_items = []
         self.order_items = []
+        self._setup_style()
         self._build_ui()
         self.load_menu()
 
+    def _setup_style(self):
+        style = ttk.Style(self)
+        style.theme_use("clam")
+        style.configure("TFrame", background="#f5f6f8")
+        style.configure("Card.TFrame", background="#ffffff", relief="flat")
+        style.configure("Header.TLabel", background="#f5f6f8", font=("Segoe UI", 16, "bold"))
+        style.configure("Subheader.TLabel", background="#ffffff", font=("Segoe UI", 11, "bold"))
+        style.configure("TLabel", background="#ffffff", font=("Segoe UI", 10))
+        style.configure(
+            "Accent.TButton",
+            font=("Segoe UI", 10, "bold"),
+            foreground="#ffffff",
+            background="#4f46e5",
+            borderwidth=0,
+            padding=(14, 6),
+        )
+        style.map(
+            "Accent.TButton",
+            background=[("active", "#4338ca"), ("disabled", "#a5b4fc")],
+        )
+        style.configure(
+            "Neutral.TButton",
+            font=("Segoe UI", 10),
+            foreground="#111827",
+            background="#e5e7eb",
+            borderwidth=0,
+            padding=(12, 6),
+        )
+        style.map("Neutral.TButton", background=[("active", "#d1d5db")])
+        style.configure(
+            "Danger.TButton",
+            font=("Segoe UI", 10),
+            foreground="#ffffff",
+            background="#ef4444",
+            borderwidth=0,
+            padding=(12, 6),
+        )
+        style.map("Danger.TButton", background=[("active", "#dc2626")])
+        style.configure(
+            "Treeview",
+            font=("Segoe UI", 10),
+            rowheight=28,
+            background="#ffffff",
+            fieldbackground="#ffffff",
+            borderwidth=0,
+        )
+        style.configure("Treeview.Heading", font=("Segoe UI", 10, "bold"))
+
     def _build_ui(self):
-        main = ttk.Frame(self, padding=12)
+        self.configure(background="#f5f6f8")
+        main = ttk.Frame(self, padding=16)
         main.pack(fill=tk.BOTH, expand=True)
 
-        left = ttk.Frame(main)
-        left.grid(row=0, column=0, sticky="nsew", padx=(0, 12))
-        right = ttk.Frame(main)
-        right.grid(row=0, column=1, sticky="nsew")
+        header = ttk.Label(main, text="Restaurant Cashier", style="Header.TLabel")
+        header.grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 12))
+
+        left = ttk.Frame(main, style="Card.TFrame", padding=12)
+        left.grid(row=1, column=0, sticky="nsew", padx=(0, 12))
+        right = ttk.Frame(main, style="Card.TFrame", padding=12)
+        right.grid(row=1, column=1, sticky="nsew")
 
         main.columnconfigure(0, weight=1)
         main.columnconfigure(1, weight=1)
-        main.rowconfigure(0, weight=1)
+        main.rowconfigure(1, weight=1)
 
-        ttk.Label(left, text="Menu Items").pack(anchor="w")
-        self.menu_list = tk.Listbox(left, height=12)
-        self.menu_list.pack(fill=tk.BOTH, expand=True)
+        ttk.Label(left, text="Menu Items", style="Subheader.TLabel").pack(anchor="w")
+        self.menu_list = ttk.Treeview(left, columns=("name", "price"), show="headings", height=10)
+        self.menu_list.heading("name", text="Item")
+        self.menu_list.heading("price", text="Price")
+        self.menu_list.column("name", width=260)
+        self.menu_list.column("price", width=100, anchor="center")
+        self.menu_list.pack(fill=tk.BOTH, expand=True, pady=(6, 0))
 
         add_frame = ttk.Frame(left)
-        add_frame.pack(fill=tk.X, pady=(10, 0))
+        add_frame.pack(fill=tk.X, pady=(12, 0))
         ttk.Label(add_frame, text="Name").grid(row=0, column=0, sticky="w")
         ttk.Label(add_frame, text="Price").grid(row=0, column=1, sticky="w", padx=(8, 0))
         self.name_entry = ttk.Entry(add_frame, width=18)
         self.name_entry.grid(row=1, column=0, sticky="w")
         self.price_entry = ttk.Entry(add_frame, width=12)
         self.price_entry.grid(row=1, column=1, sticky="w", padx=(8, 0))
-        ttk.Button(add_frame, text="Add Item", command=self.add_menu_item).grid(
+        ttk.Button(add_frame, text="Add Item", style="Accent.TButton", command=self.add_menu_item).grid(
             row=1, column=2, padx=(8, 0)
         )
 
-        ttk.Label(right, text="Current Order").pack(anchor="w")
-        self.order_list = tk.Listbox(right, height=12)
-        self.order_list.pack(fill=tk.BOTH, expand=True)
+        ttk.Label(right, text="Current Order", style="Subheader.TLabel").pack(anchor="w")
+        self.order_list = ttk.Treeview(
+            right, columns=("name", "price"), show="headings", height=10
+        )
+        self.order_list.heading("name", text="Item")
+        self.order_list.heading("price", text="Price")
+        self.order_list.column("name", width=260)
+        self.order_list.column("price", width=100, anchor="center")
+        self.order_list.pack(fill=tk.BOTH, expand=True, pady=(6, 0))
 
         controls = ttk.Frame(right)
-        controls.pack(fill=tk.X, pady=(10, 0))
-        ttk.Button(controls, text="Add to Order", command=self.add_to_order).grid(
+        controls.pack(fill=tk.X, pady=(12, 0))
+        ttk.Button(controls, text="Add to Order", style="Neutral.TButton", command=self.add_to_order).grid(
             row=0, column=0, padx=(0, 8)
         )
-        ttk.Button(controls, text="Remove Selected", command=self.remove_from_order).grid(
+        ttk.Button(
+            controls, text="Remove Selected", style="Danger.TButton", command=self.remove_from_order
+        ).grid(
             row=0, column=1, padx=(0, 8)
         )
-        ttk.Button(controls, text="Checkout", command=self.checkout).grid(row=0, column=2)
+        ttk.Button(controls, text="Checkout", style="Accent.TButton", command=self.checkout).grid(
+            row=0, column=2
+        )
 
         self.total_var = tk.StringVar(value="Total: 0.00")
-        ttk.Label(right, textvariable=self.total_var, font=("Arial", 12, "bold")).pack(
-            anchor="e", pady=(8, 0)
+        ttk.Label(right, textvariable=self.total_var, font=("Segoe UI", 12, "bold")).pack(
+            anchor="e", pady=(12, 0)
         )
 
     def load_menu(self):
-        self.menu_list.delete(0, tk.END)
+        for item in self.menu_list.get_children():
+            self.menu_list.delete(item)
         with sqlite3.connect(DB_PATH) as conn:
             rows = conn.execute("SELECT id, name, price FROM menu_items ORDER BY name").fetchall()
         self.menu_items = rows
         for item_id, name, price in rows:
-            self.menu_list.insert(tk.END, f"{name} - {price:.2f} EGP")
+            self.menu_list.insert("", tk.END, iid=str(item_id), values=(name, f"{price:.2f} EGP"))
 
     def add_menu_item(self):
         name = self.name_entry.get().strip()
@@ -132,22 +200,27 @@ class CashierApp(tk.Tk):
         self.load_menu()
 
     def add_to_order(self):
-        selection = self.menu_list.curselection()
+        selection = self.menu_list.selection()
         if not selection:
             messagebox.showwarning("Select item", "Choose a menu item first.")
             return
-        index = selection[0]
-        item_id, name, price = self.menu_items[index]
+        item_id = int(selection[0])
+        match = next((item for item in self.menu_items if item[0] == item_id), None)
+        if not match:
+            messagebox.showwarning("Select item", "Choose a menu item first.")
+            return
+        _, name, price = match
         self.order_items.append({"menu_item_id": item_id, "name": name, "price": price})
-        self.order_list.insert(tk.END, f"{name} - {price:.2f} EGP")
+        self.order_list.insert("", tk.END, values=(name, f"{price:.2f} EGP"))
         self.update_total()
 
     def remove_from_order(self):
-        selection = self.order_list.curselection()
+        selection = self.order_list.selection()
         if not selection:
             return
-        index = selection[0]
-        self.order_list.delete(index)
+        item_id = selection[0]
+        index = self.order_list.index(item_id)
+        self.order_list.delete(item_id)
         self.order_items.pop(index)
         self.update_total()
 
@@ -172,7 +245,8 @@ class CashierApp(tk.Tk):
                     (order_id, item["menu_item_id"], 1, item["price"]),
                 )
         self.order_items.clear()
-        self.order_list.delete(0, tk.END)
+        for item in self.order_list.get_children():
+            self.order_list.delete(item)
         self.update_total()
         messagebox.showinfo("Saved", "Order saved successfully.")
 
