@@ -1,5 +1,7 @@
+import os
 import sqlite3
 import tkinter as tk
+from datetime import datetime
 from tkinter import messagebox, ttk
 
 DB_PATH = "cashier.db"
@@ -51,6 +53,7 @@ class CashierApp(tk.Tk):
         self._setup_style()
         self._build_ui()
         self.load_menu()
+        self.invoice_window = None
 
     def _setup_style(self):
         style = ttk.Style(self)
@@ -160,6 +163,9 @@ class CashierApp(tk.Tk):
         ttk.Button(controls, text="Checkout", style="Accent.TButton", command=self.checkout).grid(
             row=0, column=2
         )
+        ttk.Button(
+            controls, text="Print Invoice", style="Neutral.TButton", command=self.print_invoice
+        ).grid(row=0, column=3, padx=(8, 0))
 
         self.total_var = tk.StringVar(value="Total: 0.00")
         ttk.Label(right, textvariable=self.total_var, font=("Segoe UI", 12, "bold")).pack(
@@ -228,6 +234,82 @@ class CashierApp(tk.Tk):
         total = sum(item["price"] for item in self.order_items)
         self.total_var.set(f"Total: {total:.2f} EGP")
 
+    def build_invoice_text(self, order_id, created_at):
+        lines = [
+            "Restaurant Cashier",
+            "-" * 32,
+            f"Order ID: {order_id}",
+            f"Date: {created_at}",
+            "-" * 32,
+        ]
+        for item in self.order_items:
+            lines.append(f"{item['name']:<20} {item['price']:>8.2f}")
+        lines.extend(
+            [
+                "-" * 32,
+                f"Total: {sum(item['price'] for item in self.order_items):.2f} EGP",
+                "",
+                "Thank you!",
+            ]
+        )
+        return "\n".join(lines)
+
+    def show_invoice(self, invoice_text, order_id):
+        if self.invoice_window and self.invoice_window.winfo_exists():
+            self.invoice_window.destroy()
+        self.invoice_window = tk.Toplevel(self)
+        self.invoice_window.title(f"Invoice #{order_id}")
+        self.invoice_window.geometry("420x520")
+        self.invoice_window.resizable(False, False)
+
+        frame = ttk.Frame(self.invoice_window, padding=12)
+        frame.pack(fill=tk.BOTH, expand=True)
+
+        ttk.Label(frame, text=f"Invoice #{order_id}", font=("Segoe UI", 12, "bold")).pack(
+            anchor="w"
+        )
+        text = tk.Text(frame, width=48, height=24, font=("Consolas", 10))
+        text.insert("1.0", invoice_text)
+        text.configure(state="disabled")
+        text.pack(fill=tk.BOTH, expand=True, pady=(8, 8))
+
+        buttons = ttk.Frame(frame)
+        buttons.pack(fill=tk.X)
+        ttk.Button(
+            buttons,
+            text="Print",
+            style="Accent.TButton",
+            command=lambda: self.send_to_printer(invoice_text, order_id),
+        ).pack(side=tk.RIGHT)
+
+    def send_to_printer(self, invoice_text, order_id):
+        invoices_dir = os.path.join(os.getcwd(), "invoices")
+        os.makedirs(invoices_dir, exist_ok=True)
+        file_path = os.path.join(invoices_dir, f"invoice_{order_id}.txt")
+        with open(file_path, "w", encoding="utf-8") as handle:
+            handle.write(invoice_text)
+        if os.name == "nt":
+            try:
+                os.startfile(file_path, "print")
+                messagebox.showinfo("Printing", "Invoice sent to the default printer.")
+            except OSError:
+                messagebox.showwarning(
+                    "Printing failed", "Could not send to printer. Check printer setup."
+                )
+        else:
+            messagebox.showinfo(
+                "Saved",
+                f"Invoice saved to {file_path}. Printing is supported on Windows using the default printer.",
+            )
+
+    def print_invoice(self):
+        if not self.order_items:
+            messagebox.showwarning("Empty order", "Add items before printing.")
+            return
+        created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        invoice_text = self.build_invoice_text(order_id="Draft", created_at=created_at)
+        self.show_invoice(invoice_text, order_id="Draft")
+
     def checkout(self):
         if not self.order_items:
             messagebox.showwarning("Empty order", "Add items before checkout.")
@@ -236,6 +318,9 @@ class CashierApp(tk.Tk):
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.execute("INSERT INTO orders (total) VALUES (?)", (total,))
             order_id = cursor.lastrowid
+            created_at = conn.execute(
+                "SELECT created_at FROM orders WHERE id = ?", (order_id,)
+            ).fetchone()[0]
             for item in self.order_items:
                 conn.execute(
                     """
@@ -244,6 +329,9 @@ class CashierApp(tk.Tk):
                     """,
                     (order_id, item["menu_item_id"], 1, item["price"]),
                 )
+        invoice_text = self.build_invoice_text(order_id=order_id, created_at=created_at)
+        self.show_invoice(invoice_text, order_id=order_id)
+        self.send_to_printer(invoice_text, order_id=order_id)
         self.order_items.clear()
         for item in self.order_list.get_children():
             self.order_list.delete(item)
